@@ -1,7 +1,7 @@
 package asserts
 
 import (
-	"bizops/reports"
+	"github.com/aadilpatel1989/qa-packages-golang"
 	"fmt"
 	"testing"
 

@@ -1,4 +1,3 @@
-package asserts
 
 import (
 	"github.com/aadilpatel1989/qa-packages-golang"

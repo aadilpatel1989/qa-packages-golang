@@ -1,4 +1,4 @@
-module qa-packages-golang
+module github.com/aadilpatel1989/qa-packages-golang
 
 go 1.16
 

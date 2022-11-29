@@ -4,14 +4,15 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"qa-packages-golang/utils"
 	"strconv"
 	"time"
+
+	"github.com/aadilpatel1989/qa-packages-golang/utils"
 )
 
 var (
 	srNo, totalPass, totalFail int = 0, 0, 0
-	currentSprintName              = "STEC11 QA Report" //services.GetActiveSprint()
+	currentSprintName              = services.GetActiveSprint()
 	TestReportName             *os.File
 	TotalExecutionTime         time.Duration
 	StartTime                  string

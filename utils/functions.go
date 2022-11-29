@@ -7,8 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"qa-packages-golang/structures"
 	"strings"
+
+	"github.com/aadilpatel1989/qa-packages-golang/structures"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"

@@ -1,3 +1,9 @@
 {
-    "PROJECT_PATH":"../"
+    "PROJECT_PATH":"../",
+    "jira": {
+        "BASE_URL":"https://cldcvr.atlassian.net//rest/agile/1.0/",
+        "CONTEXT_URL_ACTIVE_SPRINT":"/board/243/sprint?state=active",
+        "CODCOPS_URL":"https://codecops.atlassian.net",
+        "CODCOPS_CONTEXT_URL":"/rest/api/3"
+    }
 }

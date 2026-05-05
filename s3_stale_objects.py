@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Script to find S3 objects that:
-1. Were NOT accessed for more than 30 days
-2. Were created before January 2026
+1. Were NOT accessed for more than X days
+2. Were created before a specific date
 
 Output is dumped into a CSV file.
 
@@ -17,6 +17,10 @@ Note: AWS S3 does not natively track "last accessed time" unless you enable
       This script uses LastModified as a proxy for last access time.
       If you have S3 Inventory with "Last Access Date" enabled, see the
       alternative approach in the comments below.
+
+Usage:
+  python s3_stale_objects.py --days 30 --created-before 2026-01-01 [--bucket bucket-name] [--prefix prefix] [--output output.csv]
+  To scan ALL buckets, omit the --bucket parameter.
 """
 
 import boto3
@@ -37,6 +41,19 @@ CREATED_BEFORE = None
 def get_s3_client():
     """Initialize and return an S3 client."""
     return boto3.client('s3')
+
+def get_all_buckets(s3_client):
+    """
+    Get list of all buckets in the account.
+    
+    Args:
+        s3_client: boto3 S3 client
+        
+    Returns:
+        List of bucket names
+    """
+    response = s3_client.list_buckets()
+    return [bucket['Name'] for bucket in response['Buckets']]
 
 def get_all_objects(s3_client, bucket_name, prefix=""):
     """
@@ -128,6 +145,7 @@ def filter_stale_objects(objects, days_threshold, created_before):
         if is_stale and is_created_before_cutoff:
             days_since_access = (now - last_modified).days
             stale_objects.append({
+                'Bucket': obj.get('Bucket', 'Unknown'),
                 'Key': key,
                 'LastModified': last_modified.strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'Size_Bytes': size,
@@ -153,6 +171,7 @@ def export_to_csv(stale_objects, output_file):
         return
     
     fieldnames = [
+        'Bucket',
         'Key',
         'LastModified',
         'Size_Bytes',
@@ -219,7 +238,7 @@ def parse_date(date_str):
 def main():
     """Main function to orchestrate the S3 stale object detection."""
     parser = argparse.ArgumentParser(description='Find S3 objects not accessed for more than X days and created before a specific date.')
-    parser.add_argument('--bucket', required=True, help='S3 bucket name')
+    parser.add_argument('--bucket', help='S3 bucket name (optional - if omitted, scans ALL buckets)')
     parser.add_argument('--prefix', default="", help='Optional prefix to filter objects (folder path)')
     parser.add_argument('--output', default='s3_stale_objects.csv', help='Output CSV file name')
     parser.add_argument('--days', type=int, required=True, help='Number of days threshold for staleness')
@@ -237,8 +256,11 @@ def main():
     print("=" * 60)
     print("S3 STALE OBJECT FINDER")
     print("=" * 60)
-    print(f"Bucket:          {BUCKET_NAME}")
-    print(f"Prefix:          {PREFIX if PREFIX else '(none - scanning entire bucket)'}")
+    if BUCKET_NAME:
+        print(f"Bucket:          {BUCKET_NAME}")
+        print(f"Prefix:          {PREFIX if PREFIX else '(none - scanning entire bucket)'}")
+    else:
+        print("Scanning ALL BUCKETS")
     print(f"Days Threshold:  {DAYS_THRESHOLD}")
     print(f"Created Before:  {CREATED_BEFORE.strftime('%Y-%m-%d')}")
     print(f"Output File:     {OUTPUT_CSV}")
@@ -247,21 +269,33 @@ def main():
     # Initialize S3 client
     s3_client = get_s3_client()
     
-    # Get all objects from the bucket
-    all_objects = get_all_objects(s3_client, BUCKET_NAME, PREFIX)
+    # Get buckets to scan
+    if BUCKET_NAME:
+        buckets_to_scan = [BUCKET_NAME]
+    else:
+        buckets_to_scan = get_all_buckets(s3_client)
+        print(f"Found {len(buckets_to_scan)} buckets to scan")
     
-    if not all_objects:
-        print("No objects found in the bucket. Exiting.")
-        return
+    # Collect all stale objects across buckets
+    all_stale_objects = []
     
-    # Filter stale objects
-    stale_objects = filter_stale_objects(all_objects, DAYS_THRESHOLD, CREATED_BEFORE)
+    for bucket_name in buckets_to_scan:
+        # Get all objects from the bucket
+        all_objects = get_all_objects(s3_client, bucket_name, PREFIX)
+        
+        if not all_objects:
+            print(f"No objects found in bucket: {bucket_name}")
+            continue
+        
+        # Filter stale objects
+        stale_objects = filter_stale_objects(all_objects, DAYS_THRESHOLD, CREATED_BEFORE)
+        all_stale_objects.extend(stale_objects)
     
     # Export to CSV
-    export_to_csv(stale_objects, OUTPUT_CSV)
+    export_to_csv(all_stale_objects, OUTPUT_CSV)
     
     # Print summary
-    print_summary(stale_objects)
+    print_summary(all_stale_objects)
 
 # ======================== ALTERNATIVE APPROACH ========================
 # If you have S3 Inventory with "Last Access Date" enabled (requires
